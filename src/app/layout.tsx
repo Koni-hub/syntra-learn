@@ -13,9 +13,36 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = "https://edtech-scaffold.vercel.app"
+
 export const metadata: Metadata = {
   title: "LearnHealth - AI-Powered Learning Analytics",
-  description: "Transform your learning with AI-powered insights. Upload materials, generate quizzes, and track your understanding.",
+  description:
+    "Transform your learning with AI-powered insights. Upload materials, generate quizzes, and track your understanding.",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+  },
+  openGraph: {
+    title: "LearnHealth - AI-Powered Learning Analytics",
+    description:
+      "Transform your learning with AI-powered insights. Upload materials, generate quizzes, and track your understanding.",
+    url: siteUrl,
+    siteName: "LearnHealth",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LearnHealth - AI-Powered Learning Analytics",
+    description:
+      "Transform your learning with AI-powered insights. Upload materials, generate quizzes, and track your understanding.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  metadataBase: new URL(siteUrl),
 };
 
 export default function RootLayout({
