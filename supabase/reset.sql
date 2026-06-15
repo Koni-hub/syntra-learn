@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS flashcard_schedule CASCADE;
 DROP TABLE IF EXISTS analytics_snapshots CASCADE;
 DROP TABLE IF EXISTS topic_mastery CASCADE;
 DROP TABLE IF EXISTS quiz_attempts CASCADE;

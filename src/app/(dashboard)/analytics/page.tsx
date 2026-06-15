@@ -1,5 +1,4 @@
 import { ChartNoAxesCombined, TrendingUp, Target } from "lucide-react"
-import { ScoreBadge } from "@/components/shared/score-badge"
 import { ScoreTrendChart } from "@/components/analytics/score-trend-chart"
 import { TopicRadarChart } from "@/components/analytics/topic-radar-chart"
 import { createClient } from "@/lib/supabase/server"

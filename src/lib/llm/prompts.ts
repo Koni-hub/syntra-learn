@@ -1,9 +1,13 @@
-export function getQuizSystemPrompt(quizMode: "mixed" | "mcq" | "true_false"): string {
+export type QuizMode = "mixed" | "mcq" | "true_false" | "short_answer"
+
+export function getQuizSystemPrompt(quizMode: QuizMode): string {
   const typeRule = quizMode === "mcq"
     ? "- ALL questions must be MCQ with exactly 4 options (A, B, C, D). NO true/false questions."
     : quizMode === "true_false"
     ? "- ALL questions must be True/False. NO multiple choice questions."
-    : "- Create a mix of MCQ (with 4 options A, B, C, D) and true/false questions."
+    : quizMode === "short_answer"
+    ? "- ALL questions must be short-answer (open-ended text response). NO multiple choice or true/false."
+    : "- Create a mix of MCQ (with 4 options A, B, C, D), true/false, and short-answer questions."
 
   return `You are a precise quiz generator. Your task is to create ACCURATE quiz questions based SOLELY on the provided content.
 
@@ -29,9 +33,9 @@ OUTPUT FORMAT (JSON only):
     {
       "topic": "string - specific topic",
       "question_text": "string - the question",
-      "question_type": "mcq" | "true_false",
-      "options": [{"label": "A", "text": "string"}, ...] | null (null for true_false),
-      "correct_answer": "string - must match a label exactly",
+      "question_type": "mcq" | "true_false" | "short_answer",
+      "options": [{"label": "A", "text": "string"}, ...] | null (null for true_false and short_answer),
+      "correct_answer": "string - for MCQ must match a label exactly; for True/False must be 'A' (true) or 'B' (false); for short_answer provide the expected answer text",
       "explanation": "string - explain why this answer is correct based on the text",
       "difficulty": "easy" | "medium" | "hard"
     }

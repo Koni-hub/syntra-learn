@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Upload, FileText, CheckCircle2, Loader2, XCircle, ArrowRight } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -43,6 +44,7 @@ export default function ModuleUploadPage() {
     formData.append("category", category)
 
     setCurrentStepIndex(0)
+    toast.info("Uploading module...", { id: "module-upload" })
 
     try {
       const res = await fetch("/api/modules/upload", { method: "POST", body: formData })
@@ -52,6 +54,7 @@ export default function ModuleUploadPage() {
       setModuleId(id)
 
       setCurrentStepIndex(1)
+      toast.success("Uploaded! Extracting text...", { id: "module-upload" })
 
       const chunkRes = await fetch("/api/modules/chunk", {
         method: "POST",
@@ -69,9 +72,11 @@ export default function ModuleUploadPage() {
         if (pollData.status === "ready") {
           setCurrentStepIndex(steps.length)
           setUploading(false)
+          toast.success("Module ready to use!", { id: "module-upload", duration: 4000 })
         } else if (pollData.status === "failed") {
           setFailed(true)
           setUploading(false)
+          toast.error("Module processing failed", { id: "module-upload" })
         } else {
           pollRef.current = setTimeout(poll, 1500)
         }
@@ -80,6 +85,7 @@ export default function ModuleUploadPage() {
     } catch {
       setFailed(true)
       setUploading(false)
+      toast.error("Upload failed. Please try again.", { id: "module-upload" })
     }
   }, [category])
 

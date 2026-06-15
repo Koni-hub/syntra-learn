@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Mail, Lock, LogIn, Eye, EyeOff } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
@@ -29,11 +30,13 @@ export default function LoginPage() {
     })
 
     if (authError) {
+      toast.error(authError.message)
       setError(authError.message)
       setLoading(false)
       return
     }
 
+    toast.success("Welcome back!")
     router.push("/dashboard")
   }
 

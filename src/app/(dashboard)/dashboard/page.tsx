@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { BrainCircuit, TrendingUp, BookOpen, Target } from "lucide-react"
 import { ScoreCard } from "@/components/dashboard/score-card"
 import { createClient } from "@/lib/supabase/server"
@@ -106,10 +107,20 @@ export default async function DashboardPage() {
               {lowScoreTopics.map((topic) => (
                 <li key={topic.id} className="flex items-center justify-between border-b pb-2 text-sm last:border-0 last:pb-0">
                   <span className="font-medium">{topic.topic}</span>
-                  <span className="text-red-600">{topic.understanding_score}%</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-red-600">{topic.understanding_score}%</span>
+                    <Link href="/quizzes/generate" className="text-xs text-primary hover:underline">
+                      Practice
+                    </Link>
+                  </span>
                 </li>
               ))}
             </ul>
+          )}
+          {lowScoreTopics.length >= 3 && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Try spaced repetition flashcards to improve retention on these topics.
+            </p>
           )}
         </div>
       </div>

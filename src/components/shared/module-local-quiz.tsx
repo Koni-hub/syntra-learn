@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import { Loader2, ChevronLeft, ChevronRight, CheckCircle2, XCircle, RotateCcw } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { createAdaptiveState, recordAnswer, type AdaptiveState } from "@/lib/quiz/adaptive-difficulty"
 
 interface Option {
   label: string
@@ -11,6 +13,7 @@ interface Option {
 }
 
 interface Question {
+  topic?: string
   question_text: string
   question_type: "mcq" | "true_false"
   options: Option[] | null
@@ -30,9 +33,11 @@ export function ModuleLocalQuiz({ moduleId }: ModuleLocalQuizProps) {
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [showResults, setShowResults] = useState(false)
+  const adaptiveRef = useRef<AdaptiveState>(createAdaptiveState("medium"))
 
   const handleGenerate = useCallback(async () => {
     setQuizState("loading")
+    toast.info("Generating quiz from module content...", { id: "local-quiz-gen" })
     try {
       const res = await fetch("/api/quiz/generate-local", {
         method: "POST",
@@ -47,18 +52,34 @@ export function ModuleLocalQuiz({ moduleId }: ModuleLocalQuizProps) {
       setIndex(0)
       setAnswers({})
       setShowResults(false)
+      toast.success("Quiz ready!", { id: "local-quiz-gen" })
     } catch {
+      toast.error("Failed to generate quiz", { id: "local-quiz-gen" })
       setQuizState("idle")
     }
   }, [moduleId])
 
   function handleAnswer(label: string) {
-    setAnswers((prev) => ({ ...prev, [index]: label }))
+    setAnswers((prev) => {
+      const wasUnanswered = prev[index] === undefined
+      const newAnswers = { ...prev, [index]: label }
+      if (wasUnanswered) {
+        const q = questions[index]
+        const isCorrect = label === q.correct_answer
+        const topic = q.topic ?? "general"
+        adaptiveRef.current = recordAnswer(adaptiveRef.current, isCorrect, topic)
+      }
+      return newAnswers
+    })
   }
 
   function handleSubmit() {
     setShowResults(true)
     setQuizState("finished")
+    const total = questions.length
+    const correct = questions.filter((q, i) => answers[i] === q.correct_answer).length
+    const pct = Math.round((correct / total) * 100)
+    toast.success(`Quiz complete! ${correct}/${total} correct (${pct}%)`)
   }
 
   function handleReset() {

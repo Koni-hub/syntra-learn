@@ -110,12 +110,29 @@ CREATE TABLE analytics_snapshots (
   UNIQUE (user_id, snapshot_date)
 );
 
+CREATE TABLE flashcard_schedule (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  module_id    UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+  term         TEXT NOT NULL,
+  question     TEXT NOT NULL,
+  answer       TEXT NOT NULL,
+  easiness     NUMERIC(4,2) NOT NULL DEFAULT 2.5,
+  interval     INT NOT NULL DEFAULT 0,
+  repetitions  INT NOT NULL DEFAULT 0,
+  due_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, module_id, term)
+);
+
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE modules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE module_chunks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quizzes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quiz_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE flashcard_schedule ENABLE ROW LEVEL SECURITY;
 ALTER TABLE topic_mastery ENABLE ROW LEVEL SECURITY;
 ALTER TABLE analytics_snapshots ENABLE ROW LEVEL SECURITY;
 
@@ -135,6 +152,8 @@ CREATE POLICY "users_see_own_attempts"
   ON quiz_attempts FOR ALL USING (user_id = auth.uid());
 CREATE POLICY "users_see_own_mastery"
   ON topic_mastery FOR ALL USING (user_id = auth.uid());
+CREATE POLICY "users_see_own_flashcards"
+  ON flashcard_schedule FOR ALL USING (user_id = auth.uid());
 CREATE POLICY "users_see_own_snapshots"
   ON analytics_snapshots FOR ALL USING (user_id = auth.uid());
 
@@ -152,6 +171,8 @@ CREATE TRIGGER set_modules_updated_at
   BEFORE UPDATE ON modules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER set_topic_mastery_updated_at
   BEFORE UPDATE ON topic_mastery FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER set_flashcard_schedule_updated_at
+  BEFORE UPDATE ON flashcard_schedule FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE INDEX idx_modules_user_id          ON modules(user_id);
 CREATE INDEX idx_module_chunks_module_id  ON module_chunks(module_id);
@@ -163,6 +184,8 @@ CREATE INDEX idx_quiz_attempts_user_id    ON quiz_attempts(user_id);
 CREATE INDEX idx_quiz_attempts_question_id ON quiz_attempts(question_id);
 CREATE INDEX idx_topic_mastery_user_id    ON topic_mastery(user_id);
 CREATE INDEX idx_analytics_snapshots_user_id ON analytics_snapshots(user_id);
+CREATE INDEX idx_flashcard_schedule_user_id ON flashcard_schedule(user_id);
+CREATE INDEX idx_flashcard_schedule_due_at ON flashcard_schedule(due_at);
 
 CREATE INDEX idx_module_chunks_embedding
   ON module_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);

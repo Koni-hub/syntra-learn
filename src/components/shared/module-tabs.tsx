@@ -6,6 +6,7 @@ import { ModuleChat } from "./module-chat"
 import { ModuleLocalQuiz } from "./module-local-quiz"
 import { ModuleAiQuiz } from "./module-ai-quiz"
 import { ModuleFlashcard } from "./module-flashcard"
+import { ModuleSpacedReview } from "./module-spaced-review"
 
 interface ModuleTabsProps {
   moduleId: string
@@ -13,7 +14,7 @@ interface ModuleTabsProps {
   title: string
 }
 
-type Tab = "handout" | "local-quiz" | "ai-quiz" | "flashcard"
+type Tab = "handout" | "local-quiz" | "ai-quiz" | "flashcard" | "spaced-review"
 
 export function ModuleTabs({ moduleId, rawPdf, title }: ModuleTabsProps) {
   const [tab, setTab] = useState<Tab>("handout")
@@ -21,7 +22,7 @@ export function ModuleTabs({ moduleId, rawPdf, title }: ModuleTabsProps) {
   return (
     <div className="space-y-4">
       <div className="flex gap-1 rounded-lg border bg-muted p-1">
-        {(["handout", "local-quiz", "ai-quiz", "flashcard"] as Tab[]).map((t) => (
+        {(["handout", "local-quiz", "ai-quiz", "flashcard", "spaced-review"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -29,7 +30,7 @@ export function ModuleTabs({ moduleId, rawPdf, title }: ModuleTabsProps) {
               tab === t ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t === "handout" ? "Handout & Chat" : t === "local-quiz" ? "Local Quiz" : t === "ai-quiz" ? "AI Quiz" : "Flashcard"}
+            {t === "handout" ? "Handout & Chat" : t === "local-quiz" ? "Local Quiz" : t === "ai-quiz" ? "AI Quiz" : t === "flashcard" ? "Flashcard" : "Spaced Review"}
           </button>
         ))}
       </div>
@@ -62,6 +63,12 @@ export function ModuleTabs({ moduleId, rawPdf, title }: ModuleTabsProps) {
       {tab === "flashcard" && (
         <div className="max-w-2xl mx-auto">
           <ModuleFlashcard moduleId={moduleId} />
+        </div>
+      )}
+
+      {tab === "spaced-review" && (
+        <div className="max-w-2xl mx-auto">
+          <ModuleSpacedReview moduleId={moduleId} />
         </div>
       )}
     </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Sparkles, Loader2, ArrowRight } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 
@@ -45,7 +46,7 @@ export default function GenerateQuizPage() {
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: "Unknown error" }))
-      alert(err.error ?? "Failed to generate quiz")
+      toast.error(err.error ?? "Failed to generate quiz")
       setLoading(false)
       return
     }

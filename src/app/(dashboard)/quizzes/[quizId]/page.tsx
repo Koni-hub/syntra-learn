@@ -3,15 +3,19 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { ChevronLeft, ChevronRight, Clock, Flag, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { createAdaptiveState, recordAnswer, type AdaptiveState } from "@/lib/quiz/adaptive-difficulty"
 
 interface QuestionData {
   id: string
+  topic?: string
   question_text: string
   question_type: "mcq" | "true_false" | "short_answer"
   options: { label: string; text: string }[] | null
+  correct_answer: string
   order_index: number
 }
 
@@ -34,6 +38,7 @@ export default function QuizPage() {
   const [submitted, setSubmitted] = useState(false)
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const adaptRef = useRef<AdaptiveState>(createAdaptiveState("medium"))
 
   useEffect(() => {
     async function loadQuiz() {
@@ -90,6 +95,8 @@ export default function QuizPage() {
       givenAnswer,
     }))
 
+    toast.info("Submitting your answers...", { id: "quiz-submit" })
+
     try {
       const res = await fetch("/api/quiz/submit", {
         method: "POST",
@@ -104,6 +111,7 @@ export default function QuizPage() {
       console.error("Submit error:", e)
     }
 
+    toast.success("Quiz submitted!", { id: "quiz-submit" })
     router.push(`/quizzes/${params.quizId}/results`)
   }, [params.quizId, router])
 
@@ -128,7 +136,16 @@ export default function QuizPage() {
   }
 
   function handleAnswer(value: string) {
-    setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }))
+    setAnswers((prev) => {
+      const wasUnanswered = prev[currentQuestion.id] === undefined
+      const newAnswers = { ...prev, [currentQuestion.id]: value }
+      if (wasUnanswered && currentQuestion) {
+        const isCorrect = value === currentQuestion.correct_answer
+        const topic = currentQuestion.topic ?? "general"
+        adaptRef.current = recordAnswer(adaptRef.current, isCorrect, topic)
+      }
+      return newAnswers
+    })
   }
 
   async function deleteQuiz() {
@@ -137,6 +154,7 @@ export default function QuizPage() {
     await supabase.from("quiz_attempts").delete().eq("quiz_id", params.quizId)
     await supabase.from("questions").delete().eq("quiz_id", params.quizId)
     await supabase.from("quizzes").delete().eq("id", params.quizId)
+    toast.success("Quiz deleted")
     router.push("/quizzes")
   }
 

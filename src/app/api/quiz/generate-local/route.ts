@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
 
     const { data: mod } = await supabase
       .from("modules")
-      .select("id, title, raw_text, raw_pdf, user_id")
+      .select("id, title, raw_text, raw_pdf, user_id, topic_labels")
       .eq("id", moduleId)
       .eq("user_id", user.id)
       .single()
@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
       chunks: chunkData,
       questionCount,
       difficulty,
+      topicLabels: mod.topic_labels,
     })
 
     const { data: quiz, error: quizError } = await supabase

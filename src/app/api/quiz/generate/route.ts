@@ -2,7 +2,19 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { chunkText } from "@/lib/llm/chunker"
 import { generateQuiz, type GeneratedQuiz } from "@/lib/llm/quiz-generator"
+import { generateEmbedding } from "@/lib/llm/embedder"
+import { generateLocalQuiz } from "@/lib/llm/local-quiz-generator"
 import type { Module, ModuleChunk } from "@/lib/types/database"
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0, normA = 0, normB = 0
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i]
+    normA += a[i] * a[i]
+    normB += b[i] * b[i]
+  }
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB))
+}
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -13,7 +25,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { moduleId, questionCount = 5, difficulty = "medium", quizMode } = body
+  const { moduleId, questionCount = 5, difficulty = "medium", quizMode = "mixed" } = body
 
   if (!moduleId) {
     return NextResponse.json({ error: "moduleId is required" }, { status: 400 })
@@ -33,7 +45,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  let chunks = await supabase
+  const chunks = await supabase
     .from("module_chunks")
     .select("*")
     .eq("module_id", moduleId)
@@ -69,18 +81,60 @@ export async function POST(request: NextRequest) {
     chunkRows = chunks.data as ModuleChunk[]
   }
 
+  let selectedChunks = chunkRows.map((c) => ({ content: c.content, tokenCount: c.token_count }))
+
+  const hasEmbeddings = chunkRows.some((c) => c.embedding && Array.isArray(c.embedding) && c.embedding.length > 0)
+  if (hasEmbeddings && chunkRows.length > 3) {
+    try {
+      const queryEmbedding = await generateEmbedding((module as Module).title)
+      const scored = chunkRows
+        .filter((c) => c.embedding && Array.isArray(c.embedding) && c.embedding.length > 0)
+        .map((c) => ({
+          content: c.content,
+          tokenCount: c.token_count,
+          similarity: cosineSimilarity(queryEmbedding, c.embedding as unknown as number[]),
+        }))
+        .sort((a, b) => b.similarity - a.similarity)
+
+      const MAX_TOKENS = 8000
+      const ragChunks: typeof selectedChunks = []
+      let totalTokens = 0
+      for (const sc of scored) {
+        if (totalTokens + sc.tokenCount > MAX_TOKENS) break
+        ragChunks.push({ content: sc.content, tokenCount: sc.tokenCount })
+        totalTokens += sc.tokenCount
+      }
+      if (ragChunks.length >= 2) {
+        selectedChunks = ragChunks
+      }
+    } catch {
+      // fall through to all chunks
+    }
+  }
+
   let generated: GeneratedQuiz
   try {
     generated = await generateQuiz({
       moduleTitle: (module as Module).title,
-      chunks: chunkRows.map((c) => ({ content: c.content, tokenCount: c.token_count })),
+      chunks: selectedChunks,
       questionCount,
       difficulty,
-      quizMode: quizMode ?? "mixed",
+      quizMode,
+      topicLabels: (module as Module).topic_labels,
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    return NextResponse.json({ error: `Quiz generation failed: ${msg}` }, { status: 503 })
+    try {
+      generated = generateLocalQuiz({
+        title: (module as Module).title,
+        chunks: selectedChunks,
+        questionCount,
+        difficulty,
+        topicLabels: (module as Module).topic_labels,
+      })
+    } catch {
+      return NextResponse.json({ error: `Quiz generation failed: ${msg}` }, { status: 503 })
+    }
   }
 
   const { data: quiz, error: quizError } = await supabase

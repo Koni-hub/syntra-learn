@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Mail, Lock, UserPlus, LogIn, Eye, EyeOff, User, CheckCircle2 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
@@ -44,6 +45,7 @@ export default function RegisterPage() {
     })
 
     if (authError) {
+      toast.error(authError.message)
       setError(authError.message)
       setLoading(false)
       return
@@ -53,12 +55,14 @@ export default function RegisterPage() {
     // Check if session is immediately active (email confirmation disabled).
     const { data: sessionData } = await supabase.auth.getSession()
     if (sessionData?.session) {
+      toast.success("Account created! Welcome!")
       router.push("/dashboard")
       return
     }
 
     // Email confirmation required
     setSuccess("Check your email to confirm your account")
+    toast.success("Check your email to confirm your account")
     setLoading(false)
   }
 

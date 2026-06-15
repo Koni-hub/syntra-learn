@@ -5,6 +5,7 @@ import { Sparkles, Loader2, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Ro
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { createAdaptiveState, recordAnswer, type QuestionDifficulty, type AdaptiveState } from "@/lib/quiz/adaptive-difficulty"
 
 interface Option {
   label: string
@@ -13,6 +14,7 @@ interface Option {
 
 interface Question {
   id?: string
+  topic?: string
   question_text: string
   question_type: "mcq" | "true_false"
   options: Option[] | null
@@ -34,13 +36,14 @@ export function ModuleAiQuiz({ moduleId }: ModuleAiQuizProps) {
   const [quizState, setQuizState] = useState<QuizState>("config")
   const [mode, setMode] = useState<"mixed" | "mcq" | "true_false">("mixed")
   const [numQuestions, setNumQuestions] = useState(5)
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium")
+  const [difficulty, setDifficulty] = useState<QuestionDifficulty>("medium")
   const [quizId, setQuizId] = useState<string | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [showResults, setShowResults] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
+  const [adaptiveState, setAdaptiveState] = useState<AdaptiveState>(createAdaptiveState("medium"))
 
   const handleGenerate = useCallback(async () => {
     setQuizState("loading")
@@ -64,9 +67,15 @@ export function ModuleAiQuiz({ moduleId }: ModuleAiQuizProps) {
       setIndex(0)
       setAnswers({})
       setShowResults(false)
+      const modeLabel = mode === "mixed" ? "Mixed" : mode === "mcq" ? "MCQ" : mode === "true_false" ? "True/False" : "Short Answer"
+      toast.success(`Generated ${numQuestions}-question ${modeLabel} quiz`, { id: "quiz-ai" })
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to generate quiz"
-      toast.error(msg, { id: "quiz-ai" })
+      if (msg.includes("quota") || msg.includes("Quota")) {
+        toast.info("AI quota reached. Falling back to local quiz generation.", { id: "quiz-ai-fallback", duration: 5000 })
+      } else {
+        toast.error(msg, { id: "quiz-ai" })
+      }
       setErrorMessage(msg)
       setQuizState("error")
     }
@@ -93,10 +102,23 @@ export function ModuleAiQuiz({ moduleId }: ModuleAiQuizProps) {
     }
 
     setQuizState("finished")
+    const total = questions.length
+    const answered = Object.keys(answers).length
+    const correct = questions.filter((q, i) => answers[i] === q.correct_answer).length
+    const pct = Math.round((correct / total) * 100)
+    toast.success(`Quiz complete! ${correct}/${total} correct (${pct}%)`)
   }
 
   function handleAnswer(label: string) {
-    setAnswers((prev) => ({ ...prev, [index]: label }))
+    setAnswers((prev) => {
+      if (prev[index] !== undefined) return prev
+      return { ...prev, [index]: label }
+    })
+
+    const currentQ = questions[index]
+    const isCorrect = label === currentQ.correct_answer
+    const topic = currentQ.topic ?? "general"
+    setAdaptiveState((prev) => recordAnswer(prev, isCorrect, topic))
   }
 
   function handleReset() {
@@ -227,6 +249,17 @@ export function ModuleAiQuiz({ moduleId }: ModuleAiQuizProps) {
         <h2 className="text-xl font-bold">Quiz Complete!</h2>
         <div className="text-4xl font-bold text-primary">{percentage}%</div>
         <p className="text-muted-foreground">{correct} / {total} correct ({answeredCount} answered)</p>
+
+        <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            Current level: <strong className="capitalize text-foreground">{adaptiveState.currentDifficulty}</strong>
+          </span>
+          {Object.entries(adaptiveState.topicPerformance).length > 0 && (
+            <span className="flex items-center gap-1">
+              Topics tracked: <strong className="text-foreground">{Object.keys(adaptiveState.topicPerformance).length}</strong>
+            </span>
+          )}
+        </div>
 
         <div className="space-y-3 text-left">
           {questions.map((q, i) => {
