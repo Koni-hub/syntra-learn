@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight, Shuffle, ThumbsUp } from "lucide-react"
+import { ChevronLeft, ChevronRight, Shuffle, ThumbsUp, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { generateFlashcards, type FlashCard } from "@/lib/flashcard-generator"
 
@@ -16,6 +17,8 @@ export function ModuleFlashcard({ moduleId }: ModuleFlashcardProps) {
   const [flipped, setFlipped] = useState(false)
   const [loading, setLoading] = useState(true)
   const [knownCount, setKnownCount] = useState(0)
+  const [mode, setMode] = useState<"ai" | "local">("ai")
+  const [error, setError] = useState("")
 
   useEffect(() => {
     async function load() {
@@ -26,8 +29,32 @@ export function ModuleFlashcard({ moduleId }: ModuleFlashcardProps) {
         .eq("id", moduleId)
         .single()
 
-      if (mod?.raw_text) {
-        setCards(generateFlashcards(mod.raw_text, 20))
+      if (!mod?.raw_text) { setLoading(false); return }
+
+      try {
+        const res = await fetch("/api/flashcard/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ moduleId, count: 20 }),
+        })
+        const data = await res.json()
+        if (res.ok && data.flashcards?.length > 0) {
+          setCards(data.flashcards.map((c: any, i: number) => ({
+            id: i,
+            question: c.question,
+            answer: c.answer,
+          })))
+          setMode("ai")
+          setLoading(false)
+          return
+        }
+        setError(data.error ?? "")
+      } catch { /* fall through to local */ }
+
+      const cards = generateFlashcards(mod.raw_text, 20)
+      if (cards.length > 0) {
+        setCards(cards)
+        setMode("local")
       }
       setLoading(false)
     }
@@ -75,12 +102,19 @@ export function ModuleFlashcard({ moduleId }: ModuleFlashcardProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Button variant="outline" size="sm" onClick={shuffleCards}>
-          <Shuffle size={14} />
-          Shuffle
-        </Button>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center justify-between">
+          <Button variant="outline" size="sm" onClick={shuffleCards}>
+            <Shuffle size={14} />
+            Shuffle
+          </Button>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+              mode === "ai" ? "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300" : "bg-muted text-muted-foreground"
+            )}>
+              {mode === "ai" ? <Sparkles size={10} /> : null}
+              {mode === "ai" ? "AI" : "Local"}
+            </span>
           <span>{index + 1} / {total}</span>
           <span className="text-xs">Known: {knownCount}</span>
         </div>

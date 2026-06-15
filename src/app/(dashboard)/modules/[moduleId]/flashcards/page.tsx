@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, ChevronLeft, ChevronRight, RotateCw, Shuffle, ThumbsUp, ThumbsDown } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, RotateCw, Shuffle, ThumbsUp, ThumbsDown, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -16,6 +16,7 @@ export default function FlashcardsPage() {
   const [flipped, setFlipped] = useState(false)
   const [loading, setLoading] = useState(true)
   const [knownCount, setKnownCount] = useState(0)
+  const [mode, setMode] = useState<"ai" | "local">("ai")
 
   useEffect(() => {
     async function load() {
@@ -26,9 +27,29 @@ export default function FlashcardsPage() {
         .eq("id", params.moduleId)
         .single()
 
-      if (mod?.raw_text) {
-        setCards(generateFlashcards(mod.raw_text, 30))
-      }
+      if (!mod?.raw_text) { setLoading(false); return }
+
+      try {
+        const res = await fetch("/api/flashcard/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ moduleId: params.moduleId, count: 30 }),
+        })
+        const data = await res.json()
+        if (res.ok && data.flashcards?.length > 0) {
+          setCards(data.flashcards.map((c: any, i: number) => ({
+            id: i,
+            question: c.question,
+            answer: c.answer,
+          })))
+          setMode("ai")
+          setLoading(false)
+          return
+        }
+      } catch { /* fall through to local */ }
+
+      setCards(generateFlashcards(mod.raw_text, 30))
+      setMode("local")
       setLoading(false)
     }
     load()
@@ -74,13 +95,20 @@ export default function FlashcardsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={() => router.push(`/modules/${params.moduleId}`)}>
-          <ArrowLeft size={16} />
-          Back
-        </Button>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={shuffleCards}>
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => router.push(`/modules/${params.moduleId}`)}>
+            <ArrowLeft size={16} />
+            Back
+          </Button>
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+              mode === "ai" ? "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300" : "bg-muted text-muted-foreground"
+            )}>
+              {mode === "ai" ? <Sparkles size={10} /> : null}
+              {mode === "ai" ? "AI" : "Local"}
+            </span>
+            <Button variant="outline" size="sm" onClick={shuffleCards}>
             <Shuffle size={14} />
             Shuffle
           </Button>
