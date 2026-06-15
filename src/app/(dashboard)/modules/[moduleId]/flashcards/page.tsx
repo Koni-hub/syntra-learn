@@ -6,49 +6,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, RotateCw, Shuffle, ThumbsUp, Thum
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
-
-interface FlashCard {
-  id: number
-  question: string
-  answer: string
-}
-
-function generateFlashcards(text: string): FlashCard[] {
-  const lines = text.split(/\n+/).filter((l) => l.trim().length > 20)
-  const cards: FlashCard[] = []
-  let id = 0
-
-  for (const line of lines) {
-    const words = line.split(/\s+/).filter((w) => w.length > 4)
-    const unique = [...new Set(words.map((w) => w.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase()).filter((w) => w.length >= 4))]
-
-    if (unique.length < 2) continue
-
-    const chosen = unique[Math.floor(Math.random() * unique.length)]
-    const regex = new RegExp(chosen.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")
-    const question = line.replace(regex, "______________")
-
-    if (question === line) continue
-
-    cards.push({
-      id: id++,
-      question: `What word/phrase completes this sentence?\n\n${question}`,
-      answer: `Answer: ${chosen}\n\nFull text:\n${line}`,
-    })
-
-    if (cards.length >= 30) break
-  }
-
-  if (cards.length === 0) {
-    cards.push({
-      id: 0,
-      question: "What is this module about?",
-      answer: text.length > 200 ? text.slice(0, 200) + "..." : text,
-    })
-  }
-
-  return cards
-}
+import { generateFlashcards, type FlashCard } from "@/lib/flashcard-generator"
 
 export default function FlashcardsPage() {
   const params = useParams()
@@ -69,7 +27,7 @@ export default function FlashcardsPage() {
         .single()
 
       if (mod?.raw_text) {
-        setCards(generateFlashcards(mod.raw_text))
+        setCards(generateFlashcards(mod.raw_text, 30))
       }
       setLoading(false)
     }
