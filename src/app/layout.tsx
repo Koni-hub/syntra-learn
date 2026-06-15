@@ -16,17 +16,33 @@ const jetbrainsMono = JetBrains_Mono({
 const siteUrl = "https://edtech-scaffold.vercel.app"
 
 export const metadata: Metadata = {
-  title: "Syntra - AI-Powered Learning Analytics",
+  title: {
+    default: "Syntra — Study Your Notes with Tracking, Review, and Adaptation",
+    template: "%s | Syntra",
+  },
   description:
-    "Transform your learning with AI-powered insights. Upload materials, generate quizzes, and track your understanding.",
+    "Syntra (Study Your Notes with Tracking, Review, and Adaptation) is an AI-powered learning platform. Upload materials, generate intelligent quizzes, track understanding with deep analytics, and master any subject through adaptive practice.",
+  keywords: [
+    "AI learning platform",
+    "study notes",
+    "quiz generator",
+    "flashcard app",
+    "spaced repetition",
+    "learning analytics",
+    "AI education",
+    "study tracker",
+    "adaptive learning",
+    "Syntra",
+  ],
+  authors: [{ name: "Syntra" }],
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
   },
   openGraph: {
-    title: "Syntra - AI-Powered Learning Analytics",
+    title: "Syntra — Study Your Notes with Tracking, Review, and Adaptation",
     description:
-      "Transform your learning with AI-powered insights. Upload materials, generate quizzes, and track your understanding.",
+      "Upload your materials, generate intelligent quizzes, and track your understanding over time. Syntra adapts to your pace.",
     url: siteUrl,
     siteName: "Syntra",
     type: "website",
@@ -34,15 +50,18 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Syntra - AI-Powered Learning Analytics",
+    title: "Syntra — Study Your Notes with Tracking, Review, and Adaptation",
     description:
-      "Transform your learning with AI-powered insights. Upload materials, generate quizzes, and track your understanding.",
+      "Upload your materials, generate intelligent quizzes, and track your understanding over time. Syntra adapts to your pace.",
   },
   robots: {
     index: true,
     follow: true,
   },
   metadataBase: new URL(siteUrl),
+  alternates: {
+    canonical: siteUrl,
+  },
 };
 
 export default function RootLayout({
