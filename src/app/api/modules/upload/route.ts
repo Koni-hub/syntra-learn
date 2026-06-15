@@ -35,8 +35,9 @@ export async function POST(request: NextRequest) {
       try {
         rawText = await extractPdfText(uint8)
       } catch (e) {
-        console.error("PDF extraction failed:", e)
-        rawText = "[PDF content extraction pending]"
+        const msg = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack?.slice(0, 500)}` : String(e)
+        console.error("PDF extraction failed:", msg)
+        rawText = `[PDF extraction failed: ${msg.slice(0, 200)}]`
       }
     } else {
       rawText = await file.text()
