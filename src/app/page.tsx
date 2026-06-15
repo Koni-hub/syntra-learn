@@ -175,15 +175,27 @@ export default function LandingPage() {
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "WebApplication",
-    name: "Syntra",
-    alternateName: "Study Your Notes with Tracking, Review, and Adaptation",
-    description: "AI-powered learning platform. Upload materials, generate intelligent quizzes, and track understanding over time.",
-    url: "https://syntra.vercel.app",
-    applicationCategory: "EducationalApplication",
-    operatingSystem: "Web",
-    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-    author: { "@type": "Organization", name: "Syntra" },
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        name: "Syntra",
+        alternateName: "Study Your Notes with Tracking, Review, and Adaptation",
+        description: "AI-powered learning platform. Upload materials, generate intelligent quizzes, and track understanding over time.",
+        url: "https://syntra.vercel.app",
+        applicationCategory: "EducationalApplication",
+        operatingSystem: "Web",
+        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        author: { "@type": "Organization", name: "Syntra" },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: "https://syntra.vercel.app" },
+          { "@type": "ListItem", position: 2, name: "Features", item: "https://syntra.vercel.app/#features" },
+          { "@type": "ListItem", position: 3, name: "Documentation", item: "https://syntra.vercel.app/docs" },
+        ],
+      },
+    ],
   }
 
   return (
