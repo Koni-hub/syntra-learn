@@ -33,12 +33,12 @@ interface GenerateQuizInput {
 
 const MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"]
 
-function extractRetryDelay(err: unknown): number | null {
+function isQuotaError(err: unknown): boolean {
   if (err && typeof err === "object" && "message" in err) {
-    const m = String(err.message).match(/retry in (\d+(?:\.\d+)?)s/i)
-    if (m) return Math.ceil(Number.parseFloat(m[1]) * 1000) + 1000
+    const m = String(err.message)
+    return m.includes("429") || m.includes("quota") || m.includes("Too Many") || m.includes("retry")
   }
-  return null
+  return false
 }
 
 export async function generateQuiz(input: GenerateQuizInput): Promise<GeneratedQuiz> {
@@ -56,7 +56,9 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GeneratedQ
 
   let lastError: unknown
 
-  for (const modelName of MODELS) {
+  for (const [i, modelName] of MODELS.entries()) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 2000))
+
     try {
       const model = getGenAI().getGenerativeModel({
         model: modelName,
@@ -114,17 +116,11 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GeneratedQ
       }
     } catch (err) {
       lastError = err
-      const delay = extractRetryDelay(err)
-      if (delay && delay <= 15000) {
-        await new Promise((r) => setTimeout(r, delay))
-        continue
-      }
     }
   }
 
-  const msg = lastError instanceof Error ? lastError.message : String(lastError)
-  if (msg.includes("quota") || msg.includes("429") || msg.includes("Too Many")) {
+  if (isQuotaError(lastError)) {
     throw new Error("AI quiz quota exceeded. Please try again later or upgrade your Gemini API plan.")
   }
-  throw new Error(msg)
+  throw lastError instanceof Error ? lastError : new Error(String(lastError))
 }
