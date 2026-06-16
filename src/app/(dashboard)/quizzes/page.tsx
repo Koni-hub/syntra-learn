@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { BrainCircuit, ChevronRight, BarChart3 } from "lucide-react"
+import { BrainCircuit, ChevronRight, BarChart3, ClipboardCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScoreBadge } from "@/components/shared/score-badge"
 import { EmptyState } from "@/components/shared/empty-state"
@@ -45,13 +45,13 @@ export default async function QuizzesPage() {
         <div className="flex gap-2">
           <Link href="/quizzes/generate">
             <Button>
-              <BrainCircuit size={16} />
+              <ClipboardCheck size={16} />
               AI Quiz
             </Button>
           </Link>
           <Link href="/quizzes/generate-local">
             <Button variant="secondary">
-              <BrainCircuit size={16} />
+              <ClipboardCheck size={16} />
               Local Quiz
             </Button>
           </Link>

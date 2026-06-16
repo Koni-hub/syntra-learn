@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { BrainCircuit, TrendingUp, BookOpen, Target } from "lucide-react"
+import { BrainCircuit, TrendingUp, BookOpen, Target, ClipboardCheck } from "lucide-react"
 import { ScoreCard } from "@/components/dashboard/score-card"
 import { createClient } from "@/lib/supabase/server"
 
@@ -61,7 +61,7 @@ export default async function DashboardPage() {
         <ScoreCard
           title="Quizzes Taken"
           score={Math.min(quizzesTaken * 10, 100)}
-          icon={<BookOpen size={20} />}
+          icon={<ClipboardCheck size={20} />}
           trend="stable"
           subtitle={`${quizzesTaken} total`}
         />
