@@ -15,7 +15,10 @@ export interface Module {
   content_type: "pdf" | "text" | "markdown"
   storage_path: string | null
   raw_text: string | null
+  raw_pdf: string | null
+  structured_content: Record<string, unknown> | null
   status: "processing" | "ready" | "failed"
+  category: string | null
   topic_labels: string[]
   created_at: string
   updated_at: string
