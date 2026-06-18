@@ -1,12 +1,13 @@
 import { cn } from "@/lib/utils"
 
-function Shimmer({ className }: { className?: string }) {
+function Shimmer({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
       className={cn(
         "animate-pulse rounded-md bg-muted",
         className
       )}
+      style={style}
     />
   )
 }
