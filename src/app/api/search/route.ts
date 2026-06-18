@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       type: "quiz",
       subtitle: `${q.difficulty} quiz`,
       href: `/quizzes/${q.id}`,
-      metadata: { difficulty: q.difficulty, module_title: (q.module as { title: string } | null)?.title ?? "" },
+      metadata: { difficulty: q.difficulty, module_title: (Array.isArray(q.module) ? q.module[0] : q.module as { title: string } | null)?.title ?? "" },
     })
   }
 
