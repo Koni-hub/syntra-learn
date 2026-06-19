@@ -1,4 +1,7 @@
-import { PDFParse } from "pdf-parse"
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs"
+
+// Disable worker for serverless environments — no fake worker, no eval()
+;(pdfjsLib.GlobalWorkerOptions as unknown as { workerPort: Worker | null }).workerPort = null
 
 interface ExtractedTable {
   rows: string[][]
@@ -18,7 +21,7 @@ export interface ExtractedContent {
   sections: ExtractedSection[]
   pageCount: number
   hasImages: boolean
-  source: "pdf-parse" | "ocr"
+  source: "pdfjs" | "ocr"
 }
 
 function detectTables(text: string): ExtractedTable[] {
@@ -89,33 +92,44 @@ function detectSections(text: string): ExtractedSection[] {
   return sections
 }
 
-async function extractWithPdfParse(uint8: Uint8Array): Promise<ExtractedContent> {
-  const parser = new PDFParse({ data: uint8 })
-  try {
-    const textResult = await parser.getText()
-    let fullText = textResult.text
+async function extractWithPdfJs(uint8: Uint8Array): Promise<ExtractedContent> {
+  const loadingTask = pdfjsLib.getDocument({
+    data: uint8,
+    isEvalSupported: false,
+    useWorkerFetch: false,
+  })
 
-    const sections = detectSections(fullText)
-    for (const s of sections) {
-      fullText = fullText.replace(s.heading, "#".repeat(s.level) + " " + s.heading)
-    }
+  const doc = await loadingTask.promise
+  let fullText = ""
 
-    const tables = detectTables(fullText)
-    for (const table of tables) {
-      const tableText = table.rows.map((r) => r.join(" | ")).join("\n")
-      fullText += "\n\n[Table]\n" + tableText + "\n[/Table]"
-    }
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i)
+    const content = await page.getTextContent()
+    const pageText = content.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ")
+    fullText += pageText + "\n\n"
+    page.cleanup()
+  }
 
-    return {
-      text: fullText,
-      tables,
-      sections,
-      pageCount: textResult.total,
-      hasImages: false,
-      source: "pdf-parse",
-    }
-  } finally {
-    await parser.destroy()
+  const sections = detectSections(fullText)
+  for (const s of sections) {
+    fullText = fullText.replace(s.heading, "#".repeat(s.level) + " " + s.heading)
+  }
+
+  const tables = detectTables(fullText)
+  for (const table of tables) {
+    const tableText = table.rows.map((r) => r.join(" | ")).join("\n")
+    fullText += "\n\n[Table]\n" + tableText + "\n[/Table]"
+  }
+
+  return {
+    text: fullText,
+    tables,
+    sections,
+    pageCount: doc.numPages,
+    hasImages: false,
+    source: "pdfjs",
   }
 }
 
@@ -149,7 +163,7 @@ export async function extractPdfText(uint8: Uint8Array): Promise<string> {
 }
 
 export async function extractPdfContent(uint8: Uint8Array): Promise<ExtractedContent> {
-  let result = await extractWithPdfParse(uint8)
+  let result = await extractWithPdfJs(uint8)
 
   const cleanText = result.text
     .replace(/\[Table\][\s\S]*?\[\/Table\]/g, "")
@@ -169,7 +183,7 @@ export async function extractPdfContent(uint8: Uint8Array): Promise<ExtractedCon
         return ocrResult
       }
     } catch (e) {
-      console.warn("OCR failed, using pdf-parse result:", e)
+      console.warn("OCR failed, using pdfjs result:", e)
     }
   }
 
