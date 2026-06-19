@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { chunkText } from "@/lib/llm/chunker"
 
 async function extractYouTubeTranscript(videoId: string): Promise<string> {
   const captionsUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=srv3`
@@ -146,6 +147,37 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) return NextResponse.json({ error: `DB: ${error.message}` }, { status: 500 })
+
+    const textChunks = chunkText(rawText)
+    const { data: inserted } = await supabase
+      .from("module_chunks")
+      .insert(
+        textChunks.map((c) => ({
+          module_id: data.id,
+          chunk_index: c.index,
+          content: c.content,
+          token_count: c.tokenCount,
+        }))
+      )
+      .select()
+
+    if (inserted && process.env.GEMINI_API_KEY) {
+      try {
+        const { generateEmbeddings } = await import("@/lib/llm/embedder")
+        const chunkContents = inserted.map((c: { content: string }) => c.content)
+        const embeddings = await generateEmbeddings(chunkContents)
+        for (let i = 0; i < inserted.length; i++) {
+          await supabase
+            .from("module_chunks")
+            .update({ embedding: embeddings[i] })
+            .eq("id", inserted[i].id)
+        }
+      } catch (e) {
+        console.warn("Embedding generation skipped:", e)
+      }
+    }
+
+    await supabase.from("modules").update({ status: "ready" }).eq("id", data.id)
 
     return NextResponse.json({ moduleId: data.id })
   } catch (err) {

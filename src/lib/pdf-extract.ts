@@ -148,10 +148,16 @@ function detectHeadings(line: TextItem[]): { text: string; level: number } | nul
 
 async function extractWithPdfJs(uint8: Uint8Array): Promise<ExtractedContent> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs")
-  const worker = await import("pdfjs-dist/legacy/build/pdf.worker.mjs")
-  ;(globalThis as any).pdfjsWorker = worker
 
-  const loadingTask = pdfjs.getDocument({ data: uint8 })
+  const loadingTask = pdfjs.getDocument({
+    data: uint8,
+    useSystemFonts: true,
+    disableFontFace: true,
+    isEvalSupported: false,
+    useWorkerFetch: false,
+    rangeChunkSize: 65536,
+    maxImageSize: 1024 * 1024,
+  })
   const pdf = await loadingTask.promise
   const allTexts: string[] = []
   const allTables: ExtractedTable[] = []
@@ -265,7 +271,11 @@ export async function extractPdfContent(uint8: Uint8Array): Promise<ExtractedCon
 
   if (wordCount < 50) {
     try {
-      const ocrResult = await extractWithOcr(uint8)
+      const ocrPromise = extractWithOcr(uint8)
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("OCR timed out")), 25000)
+      )
+      const ocrResult = await Promise.race([ocrPromise, timeoutPromise])
       if (ocrResult.text.split(/\s+/).length > wordCount) {
         return ocrResult
       }

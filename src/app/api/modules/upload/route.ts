@@ -68,9 +68,13 @@ export async function POST(request: NextRequest) {
           source: extracted.source,
         }
       } catch (e) {
-        const msg = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack?.slice(0, 500)}` : String(e)
+        const msg = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
         console.error("PDF extraction failed:", msg)
-        rawText = `[PDF extraction failed: ${msg.slice(0, 200)}]`
+        rawText = ""
+      }
+
+      if (!rawText || rawText.trim().length < 10) {
+        return NextResponse.json({ error: "Could not extract text from this PDF. It may be a scanned/image-only PDF. Please try a different file." }, { status: 400 })
       }
     } else {
       rawText = await file.text()

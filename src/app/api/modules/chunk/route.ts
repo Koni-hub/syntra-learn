@@ -22,7 +22,13 @@ export async function POST(request: NextRequest) {
   if (!module) return NextResponse.json({ error: "Module not found" }, { status: 404 })
   if (!module.raw_text) return NextResponse.json({ error: "Module has no content" }, { status: 400 })
 
-  const textChunks = chunkText(module.raw_text)
+  const cleanText = module.raw_text.trim()
+  if (cleanText.length < 10) {
+    await supabase.from("modules").update({ status: "failed" }).eq("id", moduleId)
+    return NextResponse.json({ error: "Module content is too short or extraction failed" }, { status: 400 })
+  }
+
+  const textChunks = chunkText(cleanText)
 
   const { data: inserted, error: insertError } = await supabase
     .from("module_chunks")

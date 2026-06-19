@@ -49,8 +49,8 @@ export default function ModuleUploadPage() {
 
     try {
       const res = await fetch("/api/modules/upload", { method: "POST", body: formData })
-      if (!res.ok) throw new Error("Upload failed")
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Upload failed")
       const id: string = data.moduleId ?? data.module_id
       setModuleId(id)
 
