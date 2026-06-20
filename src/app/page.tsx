@@ -4,7 +4,7 @@ import Link from "next/link"
 import { BrainCircuit, BookOpen, BarChart3, Sparkles, Upload, Target, ArrowRight, Menu, X, Zap, Layers, GraduationCap, LineChart, Bot, Check, XIcon } from "lucide-react"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { useState, useRef, useEffect } from "react"
-import { motion, useInView, useScroll, useTransform, useMotionValueEvent, AnimatePresence } from "framer-motion"
+import { motion, useInView, useScroll, useTransform, AnimatePresence } from "framer-motion"
 
 function useMousePosition() {
   const [pos, setPos] = useState({ x: 0, y: 0 })
@@ -164,28 +164,14 @@ const itemVariants = {
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [navVisible, setNavVisible] = useState(true)
   const mouse = useMousePosition()
   const { scrollY } = useScroll()
   const heroY = useTransform(scrollY, [0, 600], [0, 150])
   const heroOpacity = useTransform(scrollY, [0, 400], [1, 0])
-  const lastScrollY = useRef(0)
   const particlesCanvas = useParticles(60)
   const [winSize, setWinSize] = useState({ w: 1920, h: 1080 })
   useEffect(() => { setWinSize({ w: window.innerWidth, h: window.innerHeight }) }, [])
   const heroRef = useRef<HTMLDivElement>(null)
-
-  useMotionValueEvent(scrollY, "change", (current) => {
-    const diff = current - lastScrollY.current
-    if (current < 80) {
-      setNavVisible(true)
-    } else if (diff > 8) {
-      setNavVisible(false)
-    } else if (diff < -8) {
-      setNavVisible(true)
-    }
-    lastScrollY.current = current
-  })
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -215,10 +201,7 @@ export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <motion.header
-        animate={{ y: navVisible ? 0 : -80 }}
-        transition={{ duration: 0.3, ease: [0.21, 0.47, 0.32, 0.98] }}
-        className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5">
             <motion.div whileHover={{ rotate: -10, scale: 1.1 }} className="flex size-8 items-center justify-center rounded-lg bg-primary">
@@ -263,7 +246,7 @@ export default function LandingPage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.header>
+      </header>
 
       <main className="flex-1">
         <section ref={heroRef} className="relative min-h-[90vh] flex items-center overflow-hidden">
