@@ -153,7 +153,7 @@ export function ModuleSpacedReview({ moduleId }: ModuleSpacedReviewProps) {
       </div>
 
       <div
-        className="cursor-pointer select-none overflow-hidden rounded-xl border bg-card"
+        className="cursor-pointer select-none overflow-hidden rounded-xl border bg-card w-full"
         onClick={() => !flipped && setFlipped(true)}
       >
         <div

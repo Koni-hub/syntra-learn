@@ -241,7 +241,7 @@ export function ModuleAiQuiz({ moduleId }: ModuleAiQuizProps) {
     }
 
     return (
-      <div className="rounded-xl border bg-card p-6 text-center space-y-4">
+      <div className="w-full rounded-xl border bg-card p-6 text-center space-y-4">
         <h2 className="text-xl font-bold">Quiz Complete!</h2>
         <div className="text-4xl font-bold text-primary">{percentage}%</div>
         <p className="text-muted-foreground">{correct} / {total} correct ({answeredCount} answered)</p>
@@ -295,7 +295,7 @@ export function ModuleAiQuiz({ moduleId }: ModuleAiQuizProps) {
   const answeredCount = Object.keys(answers).length
 
   return (
-    <div className="rounded-xl border bg-card p-6 space-y-4">
+    <div className="w-full rounded-xl border bg-card p-6 space-y-4">
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">Question {index + 1} of {total}</span>
         <span className="text-xs text-muted-foreground">{answeredCount} answered</span>

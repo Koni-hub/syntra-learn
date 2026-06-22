@@ -93,7 +93,7 @@ export function SwipeableCard({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onClick={handleClick}
-        className="cursor-pointer select-none overflow-hidden rounded-xl border bg-card"
+        className="cursor-pointer select-none overflow-hidden rounded-xl border bg-card w-full"
         style={{
           transform: dragging ? `translateX(${dragX}px) rotate(${swipeRotation}deg)` : undefined,
           transition: dragging ? "none" : "transform 0.3s ease",
