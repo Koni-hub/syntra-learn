@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     shortcut: "/favicon.svg",
     apple: "/icon-192x192.png",
   },
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest",
   appleWebApp: {
     capable: true,
     title: "Syntra",
