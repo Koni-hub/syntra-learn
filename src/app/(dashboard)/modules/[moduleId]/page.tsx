@@ -68,7 +68,7 @@ export default async function ModuleDetailPage({ params }: {
               {typeIcon[mod.content_type] ?? <BookOpen size={20} />}
             </div>
             <div>
-              <h1 className="text-xl font-bold">{mod.title}</h1>
+              <h1 className="text-xl font-bold line-clamp-1">{mod.title}</h1>
               <div className="flex items-center gap-2 mt-1">
                 <div className="flex items-center gap-1 text-xs">
                   {statusIcon[mod.status]}
