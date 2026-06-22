@@ -1,89 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { chunkText } from "@/lib/ai/chunker"
-
-async function fetchTranscriptFromInnerTube(videoId: string, clientName: string, clientVersion: string, userAgent: string, extraContext?: Record<string, unknown>): Promise<string> {
-  const context: Record<string, unknown> = {
-    client: { clientName, clientVersion, hl: "en" },
-  }
-  if (extraContext) Object.assign(context, extraContext)
-
-  const res = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": userAgent,
-    },
-    body: JSON.stringify({ context, videoId }),
-    signal: AbortSignal.timeout(10000),
-  })
-  if (!res.ok) throw new Error(`InnerTube ${clientName} returned ${res.status}`)
-
-  const data = await res.json()
-  const captionTracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks
-  if (!captionTracks || captionTracks.length === 0) throw new Error("No caption tracks found")
-
-  let track = captionTracks.find((t: { languageCode: string; kind?: string }) => t.languageCode === "en" && t.kind === "asr")
-  if (!track) track = captionTracks.find((t: { languageCode: string }) => t.languageCode === "en")
-  if (!track) track = captionTracks[0]
-  if (!track?.baseUrl) throw new Error("No caption URL available")
-
-  const captionRes = await fetch(track.baseUrl + "&fmt=srv3", {
-    headers: { "User-Agent": userAgent },
-    signal: AbortSignal.timeout(10000),
-  })
-  if (!captionRes.ok) throw new Error(`Caption fetch returned ${captionRes.status}`)
-
-  const xml = await captionRes.text()
-  const segments: string[] = []
-
-  // srv3 format: <p t="ms" d="ms"><s>word</s><s t="ms">word</s></p>
-  const pRegex = /<p[^>]*>([\s\S]*?)<\/p>/g
-  let pMatch
-  while ((pMatch = pRegex.exec(xml)) !== null) {
-    const inner = pMatch[1]
-    const words: string[] = []
-    const sRegex = /<s[^>]*>([\s\S]*?)<\/s>/g
-    let sMatch
-    while ((sMatch = sRegex.exec(inner)) !== null) {
-      const text = sMatch[1].replace(/&amp;#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").trim()
-      if (text) words.push(text)
-    }
-    if (words.length > 0) segments.push(words.join(" "))
-  }
-
-  // fallback: classic format <text start="s" dur="s">content</text>
-  if (segments.length === 0) {
-    const textRegex = /<text[^>]*>([\s\S]*?)<\/text>/g
-    let textMatch
-    while ((textMatch = textRegex.exec(xml)) !== null) {
-      const text = textMatch[1].replace(/&amp;#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").trim()
-      if (text) segments.push(text)
-    }
-  }
-
-  if (segments.length === 0) throw new Error("No transcript segments parsed")
-  return segments.join(" ")
-}
-
-async function extractYouTubeTranscript(videoId: string): Promise<string> {
-  const clients = [
-    { name: "ANDROID", version: "20.10.38", ua: "com.google.android.youtube/20.10.38 (Linux; U; Android 14)" },
-    { name: "WEB", version: "2.20250618.01.00", ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36" },
-    { name: "WEB_EMBEDDED_PLAYER", version: "1.20250618.01.00", ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36" },
-    { name: "TVHTML5_SIMPLY_EMBEDDED_PLAYER", version: "2.0", ua: "Mozilla/5.0", extra: { thirdParty: { embedUrl: "https://www.google.com" } } },
-  ]
-
-  const errors: string[] = []
-  for (const c of clients) {
-    try {
-      return await fetchTranscriptFromInnerTube(videoId, c.name, c.version, c.ua, c.extra)
-    } catch (err) {
-      errors.push(`${c.name}: ${err instanceof Error ? err.message : String(err)}`)
-    }
-  }
-  throw new Error(`All transcript methods failed: ${errors.join("; ")}`)
-}
+import { YoutubeTranscript } from "youtube-transcript"
 
 async function extractWebPageContent(url: string): Promise<{ title: string; text: string }> {
   const res = await fetch(url, {
@@ -91,7 +9,7 @@ async function extractWebPageContent(url: string): Promise<{ title: string; text
       "User-Agent": "Mozilla/5.0 (compatible; SyntraBot/1.0)",
       "Accept": "text/html,application/xhtml+xml",
     },
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(10000),
   })
 
   if (!res.ok) throw new Error(`Failed to fetch URL: ${res.status}`)
@@ -164,61 +82,24 @@ export async function POST(request: NextRequest) {
       title = `YouTube: ${videoId}`
       rawText = ""
 
-      try {
-        const oembedRes = await fetch(
-          `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`,
-          { signal: AbortSignal.timeout(8000) }
-        )
-        if (oembedRes.ok) {
-          const oembed = await oembedRes.json()
-          if (oembed.title) title = `YouTube: ${oembed.title}`
-          if (oembed.author_name) title += ` by ${oembed.author_name}`
-        }
-      } catch { /* oembed failed */ }
+      const oembedRes = await fetch(
+        `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`,
+        { signal: AbortSignal.timeout(5000) }
+      ).catch(() => null)
+      if (oembedRes?.ok) {
+        const oembed = await oembedRes.json().catch(() => null)
+        if (oembed?.title) title = `YouTube: ${oembed.title}`
+        if (oembed?.author_name) title += ` by ${oembed.author_name}`
+      }
 
       let rawTranscript = ""
       try {
-        rawTranscript = await extractYouTubeTranscript(videoId)
+        const transcript = await YoutubeTranscript.fetchTranscript(videoId, { lang: "en" })
+        rawTranscript = transcript.map((t) => t.text).join(" ")
       } catch { /* transcript unavailable */ }
 
-      if (rawTranscript) {
+      if (rawTranscript && rawTranscript.length > 30) {
         rawText = `${title}\n\nTranscript:\n${rawTranscript}`.trim()
-      }
-
-      if (!rawText || rawText.length < 30) {
-        try {
-          const innertubeRes = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "User-Agent": "com.google.android.youtube/20.10.38 (Linux; U; Android 14)",
-            },
-            body: JSON.stringify({
-              context: {
-                client: {
-                  clientName: "ANDROID",
-                  clientVersion: "20.10.38",
-                },
-              },
-              videoId,
-            }),
-            signal: AbortSignal.timeout(10000),
-          })
-          if (innertubeRes.ok) {
-            const data = await innertubeRes.json()
-            const videoDetails = data.videoDetails
-            if (videoDetails) {
-              if (videoDetails.title && title === `YouTube: ${videoId}`) {
-                title = `YouTube: ${videoDetails.title}`
-                if (videoDetails.author) title += ` by ${videoDetails.author}`
-              }
-              const desc = videoDetails.shortDescription || ""
-              if (desc) {
-                rawText = rawText || `${title}\n\n${desc.replace(/\n/g, " ").trim()}`.trim()
-              }
-            }
-          }
-        } catch { /* innertube failed */ }
       }
 
       if (!rawText || rawText.length < 30) {
@@ -228,10 +109,17 @@ export async function POST(request: NextRequest) {
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
               "Accept-Language": "en-US,en;q=0.9",
               "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              "Cookie": "CONSENT=YES+cb.20210328-17-p0.en+FX+{}",
             },
-            signal: AbortSignal.timeout(10000),
+            signal: AbortSignal.timeout(8000),
+            redirect: "follow",
           })
           const pageHtml = await pageRes.text()
+
+          const titleMatch = pageHtml.match(/<meta[^>]*property="og:title"[^>]*content="([^"]*)"/i)
+          if (titleMatch?.[1] && title === `YouTube: ${videoId}`) {
+            title = `YouTube: ${titleMatch[1]}`
+          }
 
           const descriptionMatch = pageHtml.match(/"shortDescription":"([\s\S]*?)","is/)
           const fullDesc = descriptionMatch?.[1]?.replace(/\\n/g, " ").replace(/\\"/g, '"').trim() || ""
